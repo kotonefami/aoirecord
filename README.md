@@ -45,8 +45,8 @@ cargo run --release
 
 - [serenity](https://github.com/serenity-rs/serenity) - Discord API クライアント
 - [songbird](https://github.com/serenity-rs/songbird) - 音声接続ライブラリ
-- [audiopus](https://github.com/haata/audiopus) - Opus エンコーダー
-- [ogg](https://github.com/nickel-org/ogg.rs) - Ogg コンテナライター
+- [audiopus](https://github.com/lakelezz/audiopus) - Opus エンコーダー
+- [ogg](https://github.com/RustAudio/ogg) - Ogg コンテナライター
 
 ## ライセンス
 
