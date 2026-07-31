@@ -39,6 +39,9 @@ jobs:
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
+        env:
+          CC: musl-gcc
+          RUSTFLAGS: "-C linker=musl-gcc"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
