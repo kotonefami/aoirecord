@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>discord-recorder</h1>
+  <h1>aoirecord</h1>
   Supported with 💛 by Kisaragi Project
 </div>
 

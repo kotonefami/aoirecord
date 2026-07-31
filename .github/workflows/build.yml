@@ -30,10 +30,10 @@ jobs:
         run: cross build --release --target ${{ env.TARGET }}
 
       - name: Strip binary
-        run: strip target/${{ env.TARGET }}/release/discord_recorder
+        run: strip target/${{ env.TARGET }}/release/aoirecord
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: discord-recorder-linux-x86_64-musl
-          path: target/${{ env.TARGET }}/release/discord_recorder
+          name: aoirecord-linux-x86_64-musl
+          path: target/${{ env.TARGET }}/release/aoirecord

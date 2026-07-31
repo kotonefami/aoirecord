@@ -18,7 +18,7 @@ use tokio::sync::Mutex;
 
 /// コマンドライン引数
 #[derive(Parser)]
-#[command(name = "discord_recorder", about = "Discord ボイスチャンネルの録音ツール")]
+#[command(name = "aoirecord", about = "Discord ボイスチャンネルの録音ツール")]
 struct Args {
     /// Discord Bot トークン
     #[arg(env = "DISCORD_TOKEN")]
@@ -84,7 +84,7 @@ impl UserTrack {
         )?;
 
         // OpusTags パケット
-        let vendor = b"discord_recorder";
+        let vendor = b"aoirecord";
         let mut tags = Vec::new();
         tags.extend_from_slice(b"OpusTags");
         tags.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
