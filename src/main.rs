@@ -438,7 +438,24 @@ async fn main() {
     let shard_manager = client.shard_manager.clone();
 
     tokio::spawn(async move {
-        tokio::signal::ctrl_c().await.expect("Ctrl+Cシグナルの受信に失敗");
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{signal, SignalKind};
+
+            let mut sigterm = signal(SignalKind::terminate())
+                .expect("SIGTERMハンドラの設定に失敗");
+
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {}
+                _ = sigterm.recv() => {}
+            }
+        }
+
+        #[cfg(not(unix))]
+        {
+            tokio::signal::ctrl_c().await.expect("Ctrl+Cシグナルの受信に失敗");
+        }
+
         println!("\nシャットダウンシグナルを受信しました...");
         shard_manager.shutdown_all().await;
     });
