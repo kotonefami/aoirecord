@@ -421,6 +421,7 @@ async fn main() {
         session: Arc::new(Mutex::new(None)),
         custom_status: args.status,
     };
+    let session = handler.session.clone();
 
     // 【最重要設定】Songbird内部で自動的に復号化とPCMデコードを行う
     let songbird_config = songbird::Config::default()
@@ -436,7 +437,6 @@ async fn main() {
         .expect("クライアントの作成に失敗しました");
 
     let shard_manager = client.shard_manager.clone();
-
     tokio::spawn(async move {
         #[cfg(unix)]
         {
@@ -458,6 +458,12 @@ async fn main() {
 
         println!("\nシャットダウンシグナルを受信しました...");
         shard_manager.shutdown_all().await;
+
+        // NOTE: Opus ファイルを閉じる
+        let mut guard = session.lock().await;
+        if let Some(session) = guard.take() {
+            session.finalize();
+        }
     });
 
     if let Err(why) = client.start().await {
