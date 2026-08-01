@@ -10,10 +10,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::track::UserTrack;
+use crate::track::Track;
 
 /// 一回の録音セッションを管理する構造体
-pub struct RecordingSession {
+pub struct Session {
     /// 出力ディレクトリのパス
     dir_path: PathBuf,
     /// SSRCからユーザーIDへのマップ
@@ -23,7 +23,7 @@ pub struct RecordingSession {
     /// ユーザーIDから表示名へのマップ
     user_id_to_name: HashMap<UserId, String>,
     /// ユーザーごとの音声トラック
-    tracks: HashMap<UserId, UserTrack>,
+    tracks: HashMap<UserId, Track>,
     /// 経過Tick数（20ms単位）
     tick_count: u64,
     /// Discord チャンネルのビットレート
@@ -33,13 +33,13 @@ pub struct RecordingSession {
     /// Songbird のマネージャー
     manager: Arc<songbird::Songbird>,
 }
-impl RecordingSession {
+impl Session {
     /// ボイスチャンネルに接続し、録音セッションを開始します。
     pub async fn start(
         guild_id: GuildId,
         channel_id: ChannelId,
         ctx: &Context,
-        session: &Arc<Mutex<Option<RecordingSession>>>,
+        session: &Arc<Mutex<Option<Session>>>,
         output_dir: &PathBuf,
     ) {
         let manager = songbird::get(ctx).await.expect("Songbirdの初期化に失敗").clone();
@@ -116,7 +116,7 @@ impl RecordingSession {
         }
     }
 }
-impl Drop for RecordingSession {
+impl Drop for Session {
     /// `end()` 呼び忘れ時のセーフティネットとして、Opus ファイルの確定のみ行います。
     ///
     /// Drop への依存は意図していません。**正常系では、必ず `end()` を明示的に呼び出してください。**。
@@ -130,7 +130,7 @@ impl Drop for RecordingSession {
 /// Songbirdの音声イベントを受信するハンドラ
 struct Receiver {
     /// 共有セッションへの参照
-    session: Arc<Mutex<Option<RecordingSession>>>,
+    session: Arc<Mutex<Option<Session>>>,
     /// Serenityコンテキスト（ユーザー名解決に使用）
     ctx: Context,
 }
@@ -156,7 +156,7 @@ impl VoiceEventHandler for Receiver {
                     session.user_id_to_name.insert(id, name.clone());
 
                     let file_path = session.dir_path.join(format!("{}.opus", name));
-                    let mut track = UserTrack::create(file_path, session.bitrate)
+                    let mut track = Track::create(file_path, session.bitrate)
                         .map_err(|e| eprintln!("Opusファイル作成失敗: {}", e))
                         .ok()?;
 

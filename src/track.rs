@@ -7,14 +7,14 @@ struct PendingFrame {
 }
 
 /// ユーザーごとの Opus トラック
-pub struct UserTrack {
+pub struct Track {
     encoder: audiopus::coder::Encoder,
     ogg_writer: ogg::PacketWriter<'static, BufWriter<std::fs::File>>,
     packet_count: u64,
     pre_skip: u16,
     pending: Option<PendingFrame>,
 }
-impl UserTrack {
+impl Track {
     /// 新しい Opus トラックを作成します。
     pub fn create(path: std::path::PathBuf, bitrate: u32) -> Result<Self, Box<dyn std::error::Error>> {
         let file = BufWriter::new(std::fs::File::create(path)?);

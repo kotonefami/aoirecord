@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::bot::BotHandler;
+use crate::bot::Bot;
 use crate::utils::signal::wait_for_shutdown;
 
 /// コマンドライン引数
@@ -47,7 +47,7 @@ async fn main() {
         | GatewayIntents::GUILD_VOICE_STATES
         | GatewayIntents::GUILD_MEMBERS;
 
-    let handler = BotHandler {
+    let handler = Bot {
         target_channel_id: ChannelId::new(args.channel_id),
         output_dir: args.output,
         session: Arc::new(Mutex::new(None)),

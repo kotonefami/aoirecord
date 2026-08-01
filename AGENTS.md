@@ -5,9 +5,9 @@ Rust で書かれた、Discord ボイスチャンネルの音声を Ogg Opus フ
 
 ## ファイル構成
 - `src/main.rs` - エントリーポイント
-- `src/bot.rs` - Bot のロジック
-- `src/session.rs` - 録音セッション（ボイスチャンネル）構造体
-- `src/track.rs` - 録音セッション中のユーザートラック（Opus ファイル）構造体
+- `src/bot.rs` - Bot のロジック: `Bot`
+- `src/session.rs` - 録音セッション（ボイスチャンネル）構造体: `Session`
+- `src/track.rs` - 録音セッション中のユーザートラック（Opus ファイル）構造体: `Track`
 
 ## CI/CD
 GitHub Actions での CI/CD を設定済み。
