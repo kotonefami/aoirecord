@@ -167,33 +167,12 @@ struct RecordingSession {
     tick_count: u64,
     /// Discord チャンネルのビットレート
     bitrate: i32,
+    /// 録音対象のギルドID
+    guild_id: GuildId,
+    /// Songbird のマネージャー
+    manager: Arc<songbird::Songbird>,
 }
-
 impl RecordingSession {
-    /// 新しい録音セッションを作成します。
-    fn new(output_dir: &PathBuf, dir_name: &str, bitrate: i32) -> Self {
-        let dir_path = output_dir.join(dir_name);
-        fs::create_dir_all(&dir_path).unwrap();
-        Self {
-            dir_path,
-            ssrc_to_user: HashMap::new(),
-            user_id_to_ssrc: HashMap::new(),
-            user_id_to_name: HashMap::new(),
-            tracks: HashMap::new(),
-            tick_count: 0,
-            bitrate,
-        }
-    }
-
-    /// 全トラックの Opus ファイルを確定して閉じます。
-    fn finalize(mut self) {
-        for (_, track) in self.tracks.drain() {
-            if let Err(e) = track.finalize() {
-                eprintln!("ファイルの確定に失敗しました: {}", e);
-            }
-        }
-    }
-
     /// 録音セッションを開始します。
     async fn start(
         guild_id: GuildId,
@@ -202,6 +181,7 @@ impl RecordingSession {
         session: &Arc<Mutex<Option<RecordingSession>>>,
         output_dir: &PathBuf,
     ) {
+        let manager = songbird::get(ctx).await.expect("Songbirdの初期化に失敗").clone();
         let dir_name;
         {
             let mut guard = session.lock().await;
@@ -215,10 +195,22 @@ impl RecordingSession {
                 .and_then(|c| c.guild().and_then(|gc| gc.bitrate.map(|b| b as i32)))
                 .unwrap_or(64000);
 
-            *guard = Some(RecordingSession::new(output_dir, &dir_name, bitrate));
+            let dir_path = output_dir.join(dir_name.clone());
+            fs::create_dir_all(&dir_path).unwrap();
+
+            *guard = Some(Self {
+                dir_path,
+                ssrc_to_user: HashMap::new(),
+                user_id_to_ssrc: HashMap::new(),
+                user_id_to_name: HashMap::new(),
+                tracks: HashMap::new(),
+                tick_count: 0,
+                bitrate,
+                guild_id,
+                manager: manager.clone(),
+            })
         }
 
-        let manager = songbird::get(ctx).await.expect("Songbirdの初期化に失敗").clone();
         let call = manager.get_or_insert(guild_id);
         {
             let mut handler = call.lock().await;
@@ -243,19 +235,27 @@ impl RecordingSession {
         println!("[{}] 録音セッションを開始しました。", dir_name);
     }
 
-    /// 録音セッションを終了します。
-    async fn end(self, ctx: &Context, guild_id: GuildId) {
-        self.finalize();
-        let manager = songbird::get(ctx).await.expect("Songbirdの初期化に失敗").clone();
-        if let Some(call) = manager.get(guild_id) {
+    /// Opus ファイルを正常に終了させ、ボイスチャンネルから切断します。
+    async fn end(mut self) {
+        for (_, track) in self.tracks.drain() {
+            if let Err(e) = track.finalize() {
+                eprintln!("ファイルの確定に失敗しました: {}", e);
+            }
+        }
+
+        if let Some(call) = self.manager.get(self.guild_id) {
             let mut handler = call.lock().await;
             let _ = handler.mute(false).await;
         }
-        let _ = manager.remove(guild_id).await;
+        let _ = self.manager.remove(self.guild_id).await;
     }
 }
-
 impl Drop for RecordingSession {
+    /// `end()` 呼び忘れ時のセーフティネットとして、Opus ファイルの確定のみ行います。
+    ///
+    /// Drop への依存は意図していません。**正常系では、必ず `end()` を明示的に呼び出してください。**。
+    /// この実装は、同期 fn の制約により、非同期処理であるボイスチャンネルからの離脱を行えません。
+    /// また `end()` が `self` を消費するため、正常経路では `tracks` が空の状態で呼ばれ実質ノーオペとなります。
     fn drop(&mut self) {
         for (_, track) in self.tracks.drain() {
             if let Err(e) = track.finalize() {
@@ -272,7 +272,6 @@ struct Receiver {
     /// Serenityコンテキスト（ユーザー名解決に使用）
     ctx: Context,
 }
-
 #[async_trait]
 impl VoiceEventHandler for Receiver {
     /// 音声イベントを処理します。
@@ -352,7 +351,6 @@ struct BotHandler {
     /// カスタムステータスメッセージ
     custom_status: Option<String>,
 }
-
 impl BotHandler {
     /// ボイスチャンネルの状態を確認し、録音を開始または終了します。
     async fn check_and_manage_recording(&self, ctx: &Context, guild_id: GuildId) {
@@ -374,12 +372,11 @@ impl BotHandler {
             let mut guard = self.session.lock().await;
             if let Some(session) = guard.take() {
                 drop(guard);
-                session.end(ctx, guild_id).await;
+                session.end().await;
             }
         }
     }
 }
-
 #[async_trait]
 impl EventHandler for BotHandler {
     /// Botが起動したときに呼ばれます。
@@ -459,10 +456,11 @@ async fn main() {
         println!("\nシャットダウンシグナルを受信しました...");
         shard_manager.shutdown_all().await;
 
-        // NOTE: Opus ファイルを閉じる
+        // NOTE: 録音セッションをシャットダウンする
         let mut guard = session.lock().await;
         if let Some(session) = guard.take() {
-            session.finalize();
+            session.end().await;
+            println!("録音セッションを終了しました。");
         }
     });
 
