@@ -3,6 +3,7 @@ use clap::Parser;
 use dotenvy::dotenv;
 use serenity::async_trait;
 use serenity::all::GatewayIntents;
+use serenity::model::guild::Guild;
 use serenity::model::id::{ChannelId, GuildId, UserId};
 use serenity::model::voice::VoiceState;
 use serenity::prelude::*;
@@ -391,10 +392,11 @@ impl EventHandler for BotHandler {
             ctx.set_presence(Some(activity), serenity::model::user::OnlineStatus::Online);
             println!("カスタムステータスを設定しました: {}", status_text);
         }
+    }
 
-        for guild in ready.guilds {
-            self.check_and_manage_recording(&ctx, guild.id).await;
-        }
+    /// ギルドデータが利用可能になったときに呼ばれます。
+    async fn guild_create(&self, ctx: Context, guild: Guild, _is_new: Option<bool>) {
+        self.check_and_manage_recording(&ctx, guild.id).await;
     }
 
     /// ボイス状態が変化したときに呼ばれます。
